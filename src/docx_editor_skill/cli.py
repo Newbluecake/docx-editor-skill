@@ -32,13 +32,12 @@ COMMAND_GROUPS = {
     },
     "paragraph": {
         "name": "📝 Paragraph Operations",
-        "commands": ["insert-paragraph", "insert-heading", "update-paragraph",
-                     "copy-paragraph", "delete", "insert-page-break"],
+        "commands": ["delete", "insert-page-break"],
         "description": "Atomic paragraph operations",
     },
     "run": {
         "name": "✏️  Text Run Operations",
-        "commands": ["insert-run", "update-run", "set-font"],
+        "commands": ["update-run", "set-font"],
         "description": "Fine-grained text formatting control",
     },
     "table": {
@@ -52,19 +51,17 @@ COMMAND_GROUPS = {
     },
     "format": {
         "name": "🎨 Formatting",
-        "commands": ["set-alignment", "set-properties", "format-copy",
-                     "set-margins", "extract-format", "apply-format"],
+        "commands": ["set-margins", "extract-format", "apply-format"],
         "description": "Style and format settings",
     },
     "advanced": {
         "name": "🔧 Advanced Operations",
-        "commands": ["replace-text", "batch-replace", "insert-image",
-                     "insert-formatted", "quick-edit", "smart-fill", "format-range"],
+        "commands": ["insert-image", "quick-edit", "smart-fill"],
         "description": "Batch operations and composite features",
     },
     "copy": {
         "name": "📋 Copy & Metadata",
-        "commands": ["copy-range", "element-source"],
+        "commands": ["element-source"],
         "description": "Element copying and source tracking",
     },
     "file": {
@@ -194,40 +191,6 @@ def _cmd_summary(session, args):
 
 # -- Paragraph --------------------------------------------------------------
 
-def _cmd_insert_paragraph(session, args):
-    from docx_editor_skill.tools.paragraph_tools import docx_insert_paragraph
-    return docx_insert_paragraph(
-        text=args.text,
-        position=args.position,
-        style=args.style,
-    )
-
-
-def _cmd_insert_heading(session, args):
-    from docx_editor_skill.tools.paragraph_tools import docx_insert_heading
-    return docx_insert_heading(
-        text=args.text,
-        position=args.position,
-        level=args.level,
-    )
-
-
-def _cmd_update_paragraph(session, args):
-    from docx_editor_skill.tools.paragraph_tools import docx_update_paragraph_text
-    return docx_update_paragraph_text(
-        paragraph_id=args.paragraph_id,
-        new_text=args.new_text,
-    )
-
-
-def _cmd_copy_paragraph(session, args):
-    from docx_editor_skill.tools.paragraph_tools import docx_copy_paragraph
-    return docx_copy_paragraph(
-        paragraph_id=args.paragraph_id,
-        position=args.position,
-    )
-
-
 def _cmd_delete(session, args):
     from docx_editor_skill.tools.paragraph_tools import docx_delete
     return docx_delete(element_id=args.element_id)
@@ -239,11 +202,6 @@ def _cmd_insert_page_break(session, args):
 
 
 # -- Run --------------------------------------------------------------------
-
-def _cmd_insert_run(session, args):
-    from docx_editor_skill.tools.run_tools import docx_insert_run
-    return docx_insert_run(text=args.text, position=args.position)
-
 
 def _cmd_update_run(session, args):
     from docx_editor_skill.tools.run_tools import docx_update_run_text
@@ -371,21 +329,6 @@ def _cmd_table_structure(session, args):
 
 # -- Format -----------------------------------------------------------------
 
-def _cmd_set_alignment(session, args):
-    from docx_editor_skill.tools.format_tools import docx_set_alignment
-    return docx_set_alignment(paragraph_id=args.paragraph_id, alignment=args.alignment)
-
-
-def _cmd_set_properties(session, args):
-    from docx_editor_skill.tools.format_tools import docx_set_properties
-    return docx_set_properties(properties=args.properties, element_id=args.element_id)
-
-
-def _cmd_format_copy(session, args):
-    from docx_editor_skill.tools.format_tools import docx_format_copy
-    return docx_format_copy(source_id=args.source_id, target_id=args.target_id)
-
-
 def _cmd_set_margins(session, args):
     from docx_editor_skill.tools.format_tools import docx_set_margins
     return docx_set_margins(
@@ -405,20 +348,6 @@ def _cmd_apply_format(session, args):
 
 # -- Advanced ---------------------------------------------------------------
 
-def _cmd_replace_text(session, args):
-    from docx_editor_skill.tools.advanced_tools import docx_replace_text
-    return docx_replace_text(
-        old_text=args.old_text, new_text=args.new_text, scope_id=args.scope_id,
-    )
-
-
-def _cmd_batch_replace(session, args):
-    from docx_editor_skill.tools.advanced_tools import docx_batch_replace_text
-    return docx_batch_replace_text(
-        replacements_json=args.replacements_json, scope_id=args.scope_id,
-    )
-
-
 def _cmd_insert_image(session, args):
     from docx_editor_skill.tools.advanced_tools import docx_insert_image
     return docx_insert_image(
@@ -430,20 +359,6 @@ def _cmd_insert_image(session, args):
 
 
 # -- Composite --------------------------------------------------------------
-
-def _cmd_insert_formatted(session, args):
-    from docx_editor_skill.tools.composite_tools import docx_insert_formatted_paragraph
-    return docx_insert_formatted_paragraph(
-        text=args.text,
-        position=args.position,
-        bold=args.bold,
-        italic=args.italic,
-        size=args.size,
-        color_hex=args.color,
-        alignment=args.alignment,
-        style=args.style,
-    )
-
 
 def _cmd_quick_edit(session, args):
     from docx_editor_skill.tools.composite_tools import docx_quick_edit
@@ -468,26 +383,7 @@ def _cmd_smart_fill(session, args):
     )
 
 
-def _cmd_format_range(session, args):
-    from docx_editor_skill.tools.composite_tools import docx_format_range
-    return docx_format_range(
-        start_text=args.start_text,
-        end_text=args.end_text,
-        bold=args.bold,
-        italic=args.italic,
-        size=args.size,
-        color_hex=args.color,
-    )
-
-
 # -- Copy -------------------------------------------------------------------
-
-def _cmd_copy_range(session, args):
-    from docx_editor_skill.tools.copy_tools import docx_copy_elements_range
-    return docx_copy_elements_range(
-        start_id=args.start_id, end_id=args.end_id, position=args.position,
-    )
-
 
 def _cmd_element_source(session, args):
     from docx_editor_skill.tools.copy_tools import docx_get_element_source
@@ -765,16 +661,14 @@ def _cmd_copy_semantic(session, args):
 # Commands which mutate the document (auto-save after execution)
 # ---------------------------------------------------------------------------
 MUTATING_COMMANDS = {
-    "insert-paragraph", "insert-heading", "update-paragraph", "copy-paragraph",
     "delete", "insert-page-break",
-    "insert-run", "update-run", "set-font",
+    "update-run", "set-font",
     "insert-table", "insert-cell-text", "insert-table-row", "insert-table-col",
     "insert-row-at", "insert-col-at", "delete-row", "delete-col",
     "fill-table", "copy-table",
-    "set-alignment", "set-properties", "format-copy", "set-margins", "apply-format",
-    "replace-text", "batch-replace", "insert-image",
-    "insert-formatted", "quick-edit", "smart-fill", "format-range",
-    "copy-range",
+    "set-margins", "apply-format",
+    "insert-image",
+    "quick-edit", "smart-fill",
     # Semantic commands
     "edit", "insert", "format", "copy",
 }
@@ -884,28 +778,6 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("--include-content", action="store_true")
 
     # --- Paragraph ---
-    p = sub.add_parser("insert-paragraph", help="Insert a paragraph")
-    p.add_argument("file")
-    p.add_argument("text")
-    p.add_argument("--position", required=True)
-    p.add_argument("--style", default=None)
-
-    p = sub.add_parser("insert-heading", help="Insert a heading")
-    p.add_argument("file")
-    p.add_argument("text")
-    p.add_argument("--position", required=True)
-    p.add_argument("--level", type=int, default=1)
-
-    p = sub.add_parser("update-paragraph", help="Update paragraph text")
-    p.add_argument("file")
-    p.add_argument("paragraph_id")
-    p.add_argument("new_text")
-
-    p = sub.add_parser("copy-paragraph", help="Copy a paragraph")
-    p.add_argument("file")
-    p.add_argument("paragraph_id")
-    p.add_argument("--position", required=True)
-
     p = sub.add_parser("delete", help="Delete an element")
     p.add_argument("file")
     p.add_argument("element_id")
@@ -915,11 +787,6 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("--position", required=True)
 
     # --- Run ---
-    p = sub.add_parser("insert-run", help="Insert a text run")
-    p.add_argument("file")
-    p.add_argument("text")
-    p.add_argument("--position", required=True)
-
     p = sub.add_parser("update-run", help="Update run text")
     p.add_argument("file")
     p.add_argument("run_id")
@@ -1021,21 +888,6 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("table_id")
 
     # --- Format ---
-    p = sub.add_parser("set-alignment", help="Set paragraph alignment")
-    p.add_argument("file")
-    p.add_argument("paragraph_id")
-    p.add_argument("alignment", choices=["left", "center", "right", "justify"])
-
-    p = sub.add_parser("set-properties", help="Set element properties (JSON)")
-    p.add_argument("file")
-    p.add_argument("properties", help="JSON properties string")
-    p.add_argument("--element-id", default=None)
-
-    p = sub.add_parser("format-copy", help="Copy format from source to target")
-    p.add_argument("file")
-    p.add_argument("source_id")
-    p.add_argument("target_id")
-
     p = sub.add_parser("set-margins", help="Set page margins (inches)")
     p.add_argument("file")
     p.add_argument("--top", type=float, default=None)
@@ -1053,17 +905,6 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("template_json", help="JSON format template string")
 
     # --- Advanced ---
-    p = sub.add_parser("replace-text", help="Replace text in document")
-    p.add_argument("file")
-    p.add_argument("old_text")
-    p.add_argument("new_text")
-    p.add_argument("--scope-id", default=None)
-
-    p = sub.add_parser("batch-replace", help="Batch replace text")
-    p.add_argument("file")
-    p.add_argument("replacements_json", help='JSON: {"old": "new", ...}')
-    p.add_argument("--scope-id", default=None)
-
     p = sub.add_parser("insert-image", help="Insert an image")
     p.add_argument("file")
     p.add_argument("image_path")
@@ -1072,17 +913,6 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("--height", type=float, default=None)
 
     # --- Composite ---
-    p = sub.add_parser("insert-formatted", help="Insert formatted paragraph")
-    p.add_argument("file")
-    p.add_argument("text")
-    p.add_argument("--position", required=True)
-    p.add_argument("--bold", action="store_true", default=False)
-    p.add_argument("--italic", action="store_true", default=False)
-    p.add_argument("--size", type=float, default=None)
-    p.add_argument("--color", default=None)
-    p.add_argument("--alignment", default=None)
-    p.add_argument("--style", default=None)
-
     p = sub.add_parser("quick-edit", help="Find and edit paragraphs")
     p.add_argument("file")
     p.add_argument("search_text")
@@ -1104,24 +934,7 @@ def build_parser(show_all=False) -> argparse.ArgumentParser:
     p.add_argument("--no-auto-resize", action="store_false", dest="auto_resize")
     p.add_argument("--preserve-formatting", action="store_true", default=False)
 
-    p = sub.add_parser("format-range", help="Format a range of paragraphs")
-    p.add_argument("file")
-    p.add_argument("start_text")
-    p.add_argument("end_text")
-    p.add_argument("--bold", action="store_true", default=None)
-    p.add_argument("--no-bold", action="store_false", dest="bold")
-    p.add_argument("--italic", action="store_true", default=None)
-    p.add_argument("--no-italic", action="store_false", dest="italic")
-    p.add_argument("--size", type=float, default=None)
-    p.add_argument("--color", default=None)
-
     # --- Copy ---
-    p = sub.add_parser("copy-range", help="Copy elements range")
-    p.add_argument("file")
-    p.add_argument("start_id")
-    p.add_argument("end_id")
-    p.add_argument("--position", required=True)
-
     p = sub.add_parser("element-source", help="Get element source metadata")
     p.add_argument("file")
     p.add_argument("element_id")
@@ -1200,14 +1013,9 @@ DISPATCH = {
     "structure": _cmd_structure,
     "summary": _cmd_summary,
     # Paragraph
-    "insert-paragraph": _cmd_insert_paragraph,
-    "insert-heading": _cmd_insert_heading,
-    "update-paragraph": _cmd_update_paragraph,
-    "copy-paragraph": _cmd_copy_paragraph,
     "delete": _cmd_delete,
     "insert-page-break": _cmd_insert_page_break,
     # Run
-    "insert-run": _cmd_insert_run,
     "update-run": _cmd_update_run,
     "set-font": _cmd_set_font,
     # Table
@@ -1227,23 +1035,15 @@ DISPATCH = {
     "copy-table": _cmd_copy_table,
     "table-structure": _cmd_table_structure,
     # Format
-    "set-alignment": _cmd_set_alignment,
-    "set-properties": _cmd_set_properties,
-    "format-copy": _cmd_format_copy,
     "set-margins": _cmd_set_margins,
     "extract-format": _cmd_extract_format,
     "apply-format": _cmd_apply_format,
     # Advanced
-    "replace-text": _cmd_replace_text,
-    "batch-replace": _cmd_batch_replace,
     "insert-image": _cmd_insert_image,
     # Composite
-    "insert-formatted": _cmd_insert_formatted,
     "quick-edit": _cmd_quick_edit,
     "smart-fill": _cmd_smart_fill,
-    "format-range": _cmd_format_range,
     # Copy
-    "copy-range": _cmd_copy_range,
     "element-source": _cmd_element_source,
     # File
     "save": _cmd_save,
