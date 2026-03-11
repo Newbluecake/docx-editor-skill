@@ -64,7 +64,7 @@ def docx_insert_paragraph(text: str, position: str, style: str = None) -> str:
         >>> result = docx_insert_paragraph("Hello World", position="end:document_body")
         >>> # Step 3: Extract element_id
         >>> import re
-        >>> match = re.search(r'\*\*Element ID\*\*:\s*(\w+)', result)
+        >>> match = re.search(r'\\*\\*Element ID\\*\\*:\\s*(\\w+)', result)
         >>> para_id = match.group(1) if match else None
 
         Insert after existing paragraph:
@@ -211,7 +211,7 @@ def docx_insert_heading(text: str, position: str, level: int = 1) -> str:
         >>> result = docx_insert_heading("Chapter 1", position="end:document_body", level=1)
         >>> # Step 3: Extract element_id
         >>> import re
-        >>> match = re.search(r'\*\*Element ID\*\*:\s*(\w+)', result)
+        >>> match = re.search(r'\\*\\*Element ID\\*\\*:\\s*(\\w+)', result)
         >>> heading_id = match.group(1) if match else None
 
         Create document structure:

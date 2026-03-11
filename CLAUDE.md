@@ -2,14 +2,14 @@
 
 ## 项目概述
 
-docx-editor-skill 是一个基于 Model Context Protocol (MCP) 的服务器，为 Claude 提供细粒度的 Microsoft Word 文档操作能力。通过原子化的 API 设计，Claude 可以精确控制文档的每个元素。
+docx-editor-skill 是一个 Claude Code Skill 插件，通过 `docx` CLI 工具为 Claude 提供细粒度的 Microsoft Word 文档操作能力。安装到 `~/.claude/skills/` 后，Claude Code 可自动使用 `/docx` 技能处理 Word 文档。
 
 ### 核心目标
 
-- **状态管理**：维护多个文档编辑会话，支持并发操作
+- **CLI 架构**：通过 `docx <subcommand> <file>` 命令行接口操作文档
 - **原子化操作**：每个操作针对单一元素（段落、文本块、表格）
-- **ID 映射系统**：将 python-docx 的内存对象映射为稳定的字符串 ID
-- **MCP 协议兼容**：完全符合 MCP 规范，易于集成
+- **确定性 ID**：元素 ID（`para_001`, `table_001`）在文档结构不变时保持稳定
+- **自动保存**：修改操作执行后自动保存文件
 - **模块化架构**：工具按领域拆分，便于维护和扩展
 
 ## 核心架构
