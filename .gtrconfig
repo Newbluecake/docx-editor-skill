@@ -1,0 +1,25 @@
+# .gtrconfig - Git Worktree Manager 配置
+# 此文件可提交到 Git，作为团队共享的默认配置
+# 配置优先级：命令行参数 > git config --local > .gtrconfig > git config --global
+
+[gtr "worktree"]
+    # worktree 存放位置（相对路径基于项目根目录）
+    # 默认值：.worktrees
+    dir = .worktrees
+
+[gtr "symlink"]
+    # 创建 worktree 时自动创建符号链接的文件/目录
+    # 环境变量文件
+    include = .env
+    include = .env.local
+    # 虚拟环境
+    include = .venv
+    include = venv
+    # 构建产物
+    include = __pycache__
+    include = .pytest_cache
+
+[gtr "copy"]
+    # 创建 worktree 时复制的文件模式
+    # 复制环境变量模板
+    include = .env.example
