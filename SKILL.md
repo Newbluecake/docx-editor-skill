@@ -293,43 +293,52 @@ docx preview-cleanup
 #### 段落操作
 | 命令 | 说明 |
 |------|------|
-| `docx insert-paragraph <file> <text> --position <pos>` | 插入段落 |
-| `docx insert-heading <file> <text> --position <pos> --level N` | 插入标题 |
-| `docx update-paragraph <file> <id> <new_text>` | 更新段落文本 |
-| `docx copy-paragraph <file> <id> --position <pos>` | 复制段落 |
 | `docx delete <file> <id>` | 删除元素 |
+| `docx insert-page-break <file> --position <pos>` | 插入分页符 |
 
-### 文本运行（原子命令）
+#### 文本运行
 | 命令 | 说明 |
 |------|------|
-| `docx insert-run <file> <text> --position <pos>` | 插入文本运行 |
 | `docx update-run <file> <id> <new_text>` | 更新运行文本 |
 | `docx set-font <file> <id> --bold --size 14 --color FF0000` | 设置字体 |
 
-### 表格操作（原子命令）
+#### 表格操作
 | 命令 | 说明 |
 |------|------|
 | `docx insert-table <file> --rows N --cols N --position <pos>` | 创建表格 |
 | `docx get-table <file> <index>` | 按索引获取表格 |
+| `docx list-tables <file>` | 列出所有表格 |
 | `docx find-table <file> <text>` | 按文本查找表格 |
+| `docx get-cell <file> <table_id> <row> <col>` | 获取单元格 |
+| `docx insert-cell-text <file> <text> --position <pos>` | 向单元格插入文本 |
+| `docx insert-table-row <file> --position <pos>` | 添加行 |
+| `docx insert-table-col <file> --position <pos>` | 添加列 |
+| `docx insert-row-at <file> <table_id> --position <pos>` | 在指定位置插入行 |
+| `docx insert-col-at <file> <table_id> --position <pos>` | 在指定位置插入列 |
+| `docx delete-row <file> <table_id> <row_index>` | 删除行 |
+| `docx delete-col <file> <table_id> <col_index>` | 删除列 |
 | `docx fill-table <file> <json_data>` | 批量填充表格 |
-| `docx smart-fill <file> <identifier> <json_data>` | 智能填充 |
+| `docx copy-table <file> <table_id> --position <pos>` | 复制表格 |
+| `docx table-structure <file> <table_id>` | 显示表格结构 |
 
-### 格式操作（原子命令）
+#### 格式操作
 | 命令 | 说明 |
 |------|------|
-| `docx set-alignment <file> <id> center` | 设置对齐 |
-| `docx format-copy <file> <source_id> <target_id>` | 格式刷 |
+| `docx set-margins <file> --top N --bottom N --left N --right N` | 设置页边距 |
 | `docx extract-format <file> <id>` | 提取格式模板 |
 | `docx apply-format <file> <id> <json>` | 应用格式模板 |
 
-### 高级操作（原子命令）
+#### 高级操作
 | 命令 | 说明 |
 |------|------|
-| `docx replace-text <file> <old> <new>` | 替换文本 |
-| `docx batch-replace <file> <json>` | 批量替换 |
 | `docx insert-image <file> <path> --position <pos>` | 插入图片 |
-| `docx copy-range <file> <start_id> <end_id> --position <pos>` | 复制区间 |
+| `docx quick-edit <file> <search_text> --new-text <text>` | 快速查找并编辑 |
+| `docx smart-fill <file> <identifier> <json_data>` | 智能填充表格 |
+
+#### 元数据
+| 命令 | 说明 |
+|------|------|
+| `docx element-source <file> <id>` | 获取元素来源信息 |
 
 </details>
 
