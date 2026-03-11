@@ -16,6 +16,73 @@ import logging
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Command Groups for Help Display
+# ---------------------------------------------------------------------------
+
+COMMAND_GROUPS = {
+    "smart": {
+        "name": "💡 Smart Commands (Recommended)",
+        "commands": ["edit", "insert", "format", "copy"],
+        "description": "High-level semantic commands that auto-detect intent",
+    },
+    "content": {
+        "name": "📖 Content Query",
+        "commands": ["read", "find", "structure", "summary"],
+        "description": "Read and search document content",
+    },
+    "paragraph": {
+        "name": "📝 Paragraph Operations",
+        "commands": ["insert-paragraph", "insert-heading", "update-paragraph",
+                     "copy-paragraph", "delete", "insert-page-break"],
+        "description": "Atomic paragraph operations",
+    },
+    "run": {
+        "name": "✏️  Text Run Operations",
+        "commands": ["insert-run", "update-run", "set-font"],
+        "description": "Fine-grained text formatting control",
+    },
+    "table": {
+        "name": "📊 Table Operations",
+        "commands": ["insert-table", "get-table", "list-tables", "find-table",
+                     "get-cell", "insert-cell-text", "insert-table-row",
+                     "insert-table-col", "insert-row-at", "insert-col-at",
+                     "delete-row", "delete-col", "fill-table", "copy-table",
+                     "table-structure"],
+        "description": "Table creation, query, and editing",
+    },
+    "format": {
+        "name": "🎨 Formatting",
+        "commands": ["set-alignment", "set-properties", "format-copy",
+                     "set-margins", "extract-format", "apply-format"],
+        "description": "Style and format settings",
+    },
+    "advanced": {
+        "name": "🔧 Advanced Operations",
+        "commands": ["replace-text", "batch-replace", "insert-image",
+                     "insert-formatted", "quick-edit", "smart-fill", "format-range"],
+        "description": "Batch operations and composite features",
+    },
+    "copy": {
+        "name": "📋 Copy & Metadata",
+        "commands": ["copy-range", "element-source"],
+        "description": "Element copying and source tracking",
+    },
+    "file": {
+        "name": "💾 File Management",
+        "commands": ["save", "context"],
+        "description": "Document save and session management",
+    },
+    "preview": {
+        "name": "👁️  Preview",
+        "commands": ["preview", "preview-cleanup"],
+        "description": "Document visualization preview",
+    },
+}
+
+# Default groups to show in --help (simplified view)
+DEFAULT_GROUPS = ["smart", "content"]
+
+# ---------------------------------------------------------------------------
 # Helpers for semantic commands
 # ---------------------------------------------------------------------------
 
@@ -726,10 +793,59 @@ def _add_bool_arg(parser, name, help_text):
     parser.add_argument(f"--no-{name}", action="store_false", dest=name)
 
 
-def build_parser() -> argparse.ArgumentParser:
+# ---------------------------------------------------------------------------
+# Parser building
+# ---------------------------------------------------------------------------
+
+def _generate_description(show_all: bool) -> str:
+    """Generate help description text based on show_all flag."""
+    if show_all:
+        lines = ["Word document manipulation CLI - All Commands\n"]
+        lines.append("=" * 60)
+        lines.append("")
+
+        for group_key in COMMAND_GROUPS:
+            group = COMMAND_GROUPS[group_key]
+            lines.append(f"{group['name']}:")
+            lines.append(f"  {group['description']}")
+            lines.append(f"  Commands: {', '.join(group['commands'])}")
+            lines.append("")
+
+        return "\n".join(lines)
+    else:
+        lines = ["Word document manipulation CLI\n"]
+        lines.append("💡 Recommended: Use smart commands for intuitive editing")
+        lines.append("   edit, insert, format, copy - auto-detect your intent\n")
+        lines.append("=" * 60)
+        lines.append("")
+
+        # Only show smart commands and common queries
+        for group_key in DEFAULT_GROUPS:
+            group = COMMAND_GROUPS[group_key]
+            lines.append(f"{group['name']}:")
+            for cmd in group['commands']:
+                lines.append(f"  {cmd}")
+            lines.append("")
+
+        lines.append("Use 'docx --help-all' to see all available commands.")
+        lines.append("")
+
+        return "\n".join(lines)
+
+
+def build_parser(show_all=False) -> argparse.ArgumentParser:
+    """Build argument parser with optional full command list.
+
+    Args:
+        show_all: If True, show all commands in help. If False, show only smart commands and common queries.
+    """
+    description = _generate_description(show_all)
+
     parser = argparse.ArgumentParser(
         prog="docx",
-        description="Word document manipulation CLI",
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Use 'docx <command> --help' for detailed help on a specific command.",
     )
     parser.add_argument("--no-save", action="store_true",
                         help="Skip auto-save for mutating commands")
@@ -1148,7 +1264,16 @@ DISPATCH = {
 # ---------------------------------------------------------------------------
 
 def cli_main():
-    parser = build_parser()
+    # Check if user wants full help
+    if "--help-all" in sys.argv:
+        # Remove --help-all and add --help to trigger argparse help
+        sys.argv.remove("--help-all")
+        if "--help" not in sys.argv and "-h" not in sys.argv:
+            sys.argv.append("--help")
+        parser = build_parser(show_all=True)
+    else:
+        parser = build_parser(show_all=False)
+
     args = parser.parse_args()
 
     command = args.command
