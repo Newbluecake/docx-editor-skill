@@ -29,7 +29,16 @@ docx find document.docx "关键词"
 
 ## 语义化命令（推荐优先使用）
 
-v5.0 新增了 4 个语义化命令，镜像 Claude 的 Read/Edit/Write 工具，零学习成本：
+v5.0 新增了 4 个语义化命令，镜像 Claude 的 Read/Edit/Write 工具，零学习成本。
+
+**⚠️ 重要：90% 的任务只需要这 4 个命令！**
+
+只有在以下特殊情况才需要使用原子命令：
+- 需要精确控制 Run 级别的格式（如段落内部分文字加粗）
+- 需要操作表格的特定行/列
+- 需要提取或应用复杂的格式模板
+
+**如果不确定，优先使用语义命令。**
 
 ### `docx edit` — 文本替换（保留格式）
 
@@ -258,24 +267,30 @@ docx preview-cleanup
 
 ## 命令速查
 
-### 语义命令（推荐优先使用）
-| 命令 | 说明 |
-|------|------|
-| `docx edit <file> <old> <new>` | 替换文本（保留格式） |
-| `docx edit <file> <json>` | 批量替换（JSON） |
-| `docx insert <file> <text>` | 智能插入（自动识别类型） |
-| `docx format <file> <target>` | 格式化（按 ID 或文本） |
-| `docx copy <file> <id>` | 复制元素 |
+### 🌟 核心命令（优先使用，覆盖 90% 场景）
 
-### 读取类
-| 命令 | 说明 |
-|------|------|
-| `docx read <file>` | 读取文档内容 |
-| `docx find <file> <query>` | 查找段落 |
-| `docx structure <file>` | 提取完整结构 |
-| `docx summary <file>` | 轻量级结构概要 |
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `docx edit <file> <old> <new>` | 替换文本（保留格式） | `docx edit doc.docx "旧" "新"` |
+| `docx edit <file> <json>` | 批量替换（JSON） | `docx edit doc.docx '{"{{名}}":"张三"}'` |
+| `docx insert <file> <text>` | 智能插入（自动识别类型） | `docx insert doc.docx "# 标题" --end` |
+| `docx format <file> <target>` | 格式化（按 ID 或文本） | `docx format doc.docx para_001 --bold` |
+| `docx copy <file> <id>` | 复制元素 | `docx copy doc.docx para_001 --after para_005` |
+| `docx read <file>` | 读取文档内容 | `docx read doc.docx` |
+| `docx find <file> <query>` | 查找段落 | `docx find doc.docx "关键词"` |
+| `docx summary <file>` | 轻量级结构概要 | `docx summary doc.docx` |
+| `docx preview <file>` | 视觉预览 | `docx preview doc.docx --pages 1-3` |
 
-### 段落操作（原子命令）
+**这 9 个命令足以完成绝大多数任务。**
+
+---
+
+### 🔧 原子命令（仅在特殊情况使用）
+
+<details>
+<summary>点击展开原子命令列表（通常不需要）</summary>
+
+#### 段落操作
 | 命令 | 说明 |
 |------|------|
 | `docx insert-paragraph <file> <text> --position <pos>` | 插入段落 |
@@ -316,14 +331,21 @@ docx preview-cleanup
 | `docx insert-image <file> <path> --position <pos>` | 插入图片 |
 | `docx copy-range <file> <start_id> <end_id> --position <pos>` | 复制区间 |
 
+</details>
+
+---
+
 ## 执行原则
 
-1. **优先使用语义命令**：`edit`、`insert`、`format`、`copy` 更简洁直观
-2. **格式一致性**：新内容必须和模板已有格式一致，用 `format --like` 或 `apply-format` 保证
-3. **先结构后内容**：先用 `copy` 扩展所有章节，再逐一填充
-4. **保留格式替换**：用 `edit`，不用 `update-paragraph`
-5. **视觉闭环**：不盲改，每次重大修改后预览验证
-6. **最小修改**：能替换就不删除重建，保留原有格式信息
+1. **优先使用核心命令**：9 个核心命令覆盖 90% 场景，简单高效
+2. **只在必要时使用原子命令**：需要精确控制时才展开原子命令列表
+3. **格式一致性**：新内容必须和模板已有格式一致，用 `format --like` 或 `apply-format` 保证
+4. **先结构后内容**：先用 `copy` 扩展所有章节，再逐一填充
+5. **保留格式替换**：用 `edit`，不用 `update-paragraph`
+6. **视觉闭环**：不盲改，每次重大修改后预览验证
+7. **最小修改**：能替换就不删除重建，保留原有格式信息
+
+**记住：如果不确定用什么命令，先尝试核心命令。**
 
 ## 用户需求
 
