@@ -1,8 +1,7 @@
 ---
-name: docx
+name: docx-editor-skill
 description: Word 文档模板分析、内容填充与视觉预览。当用户需要操作 Word 文档、填充模板、生成报告、编辑 docx 文件时使用。触发词：word、docx、文档、模板、填充、报告生成。
 argument-hint: "[需求描述或模板路径]"
-allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Word 文档智能处理
@@ -18,7 +17,7 @@ allowed-tools: Read, Glob, Grep, Bash
 docx read document.docx
 
 # 插入段落（会自动保存）
-docx insert-paragraph document.docx "Hello World" --position "end:document_body"
+docx insert document.docx "Hello World" --after para_001
 
 # 查找文本
 docx find document.docx "关键词"
@@ -27,6 +26,81 @@ docx find document.docx "关键词"
 **元素 ID 是确定性的**：`para_001`, `para_002`, `table_001`... 只要文档结构不变，ID 在不同调用间保持稳定。
 
 **自动保存**：所有修改操作（insert、update、delete、replace 等）执行后自动保存文件。用 `--no-save` 跳过。
+
+## 语义化命令（推荐优先使用）
+
+v5.0 新增了 4 个语义化命令，镜像 Claude 的 Read/Edit/Write 工具，零学习成本：
+
+### `docx edit` — 文本替换（保留格式）
+
+```bash
+# 单个替换
+docx edit file.docx "旧文本" "新文本"
+
+# 批量替换（JSON）
+docx edit file.docx '{"{{名称}}": "张三", "{{日期}}": "2026-03-11"}'
+
+# 限定范围
+docx edit file.docx "旧文本" "新文本" --scope para_003
+```
+
+### `docx insert` — 智能插入（自动识别类型）
+
+```bash
+# 纯文本 → 段落
+docx insert file.docx "普通段落" --after para_003
+
+# Markdown 标题语法 → 标题
+docx insert file.docx "# 一级标题" --end
+docx insert file.docx "## 二级标题" --after para_001
+
+# 表格
+docx insert file.docx --table 3x2 --after para_003
+
+# 图片（自动检测扩展名）
+docx insert file.docx ./chart.png --after para_003 --width 5.0
+
+# 带格式文本
+docx insert file.docx "重要内容" --after para_003 --bold --size 14 --color FF0000
+
+# 分页符
+docx insert file.docx --page-break --after para_003
+```
+
+**位置参数**：
+- `--after <id>` — 在元素之后
+- `--before <id>` — 在元素之前
+- `--end` — 文档末尾（默认）
+- `--inside <id>` — 元素内部
+
+### `docx format` — 格式化（不改内容）
+
+```bash
+# 按 ID 格式化
+docx format file.docx para_003 --bold --size 14 --align center
+
+# 按文本查找后格式化
+docx format file.docx "包含此文本" --bold --italic
+
+# 格式刷
+docx format file.docx para_005 --like para_001
+
+# 按文本范围批量格式化
+docx format file.docx --from "开始文本" --to "结束文本" --bold --size 12
+```
+
+### `docx copy` — 复制元素
+
+```bash
+# 复制单个段落
+docx copy file.docx para_003 --after para_010
+
+# 复制表格
+docx copy file.docx table_001 --after para_010
+
+# 复制区间
+docx copy file.docx para_003 para_010 --after para_015
+```
 
 ## 工作流程
 
@@ -89,16 +163,16 @@ docx extract-format template.docx run_001
 
 根据用户需求执行以下操作。**顺序很重要：先扩展结构，再填充内容。**
 
-**2.1 替换文字**
+**2.1 替换文字（推荐使用语义命令）**
 
 占位符批量替换（保留格式）：
 ```bash
-docx batch-replace template.docx '{"{{公司名}}": "XX科技", "{{日期}}": "2026-03-11"}'
+docx edit template.docx '{"{{公司名}}": "XX科技", "{{日期}}": "2026-03-11"}'
 ```
 
 单个编辑（保留格式）：
 ```bash
-docx quick-edit template.docx "示例文本" --new-text "实际内容"
+docx edit template.docx "示例文本" "实际内容"
 ```
 
 > 重要：不要用 `update-paragraph`，它会清除段落内所有 Run 的格式。
@@ -109,38 +183,38 @@ docx quick-edit template.docx "示例文本" --new-text "实际内容"
 docx smart-fill template.docx "表格关键词" '[["列1","列2"],["值1","值2"]]' --has-header
 ```
 
-**2.3 扩展章节**
+**2.3 扩展章节（推荐使用语义命令）**
 
 当需要基于模板章节生成多个类似章节时：
 
 ```bash
 # 1. 复制整个章节结构（格式自动保留）
-docx copy-range template.docx para_005 para_010 --position "after:para_010"
+docx copy template.docx para_005 para_010 --after para_010
 
 # 2. 修改复制出来的新章节内容
-docx quick-edit template.docx "原标题" --new-text "新标题"
+docx edit template.docx "原标题" "新标题"
 
 # 3. 如需确保格式一致
-docx format-copy template.docx para_005 para_011
+docx format template.docx para_011 --like para_005
 ```
 
-**2.4 新增内容**
+**2.4 新增内容（推荐使用语义命令）**
 
 插入新内容并应用模板格式：
 
 ```bash
 # 方式1：一步创建格式化段落
-docx insert-formatted template.docx "内容" --position "after:para_003" --bold --size 12
+docx insert template.docx "内容" --after para_003 --bold --size 12
 
 # 方式2：插入 + 应用格式模板
-docx insert-paragraph template.docx "内容" --position "after:para_003"
+docx insert template.docx "内容" --after para_003
 docx apply-format template.docx para_011 '{"font": {"bold": true, "size": 12}}'
 ```
 
-**2.5 插入图片**
+**2.5 插入图片（推荐使用语义命令）**
 
 ```bash
-docx insert-image template.docx /path/to/image.png --position "after:para_003" --width 5.0
+docx insert template.docx /path/to/image.png --after para_003 --width 5.0
 ```
 
 ---
@@ -184,6 +258,15 @@ docx preview-cleanup
 
 ## 命令速查
 
+### 语义命令（推荐优先使用）
+| 命令 | 说明 |
+|------|------|
+| `docx edit <file> <old> <new>` | 替换文本（保留格式） |
+| `docx edit <file> <json>` | 批量替换（JSON） |
+| `docx insert <file> <text>` | 智能插入（自动识别类型） |
+| `docx format <file> <target>` | 格式化（按 ID 或文本） |
+| `docx copy <file> <id>` | 复制元素 |
+
 ### 读取类
 | 命令 | 说明 |
 |------|------|
@@ -192,7 +275,7 @@ docx preview-cleanup
 | `docx structure <file>` | 提取完整结构 |
 | `docx summary <file>` | 轻量级结构概要 |
 
-### 段落操作
+### 段落操作（原子命令）
 | 命令 | 说明 |
 |------|------|
 | `docx insert-paragraph <file> <text> --position <pos>` | 插入段落 |
@@ -201,14 +284,14 @@ docx preview-cleanup
 | `docx copy-paragraph <file> <id> --position <pos>` | 复制段落 |
 | `docx delete <file> <id>` | 删除元素 |
 
-### 文本运行
+### 文本运行（原子命令）
 | 命令 | 说明 |
 |------|------|
 | `docx insert-run <file> <text> --position <pos>` | 插入文本运行 |
 | `docx update-run <file> <id> <new_text>` | 更新运行文本 |
 | `docx set-font <file> <id> --bold --size 14 --color FF0000` | 设置字体 |
 
-### 表格操作
+### 表格操作（原子命令）
 | 命令 | 说明 |
 |------|------|
 | `docx insert-table <file> --rows N --cols N --position <pos>` | 创建表格 |
@@ -217,7 +300,7 @@ docx preview-cleanup
 | `docx fill-table <file> <json_data>` | 批量填充表格 |
 | `docx smart-fill <file> <identifier> <json_data>` | 智能填充 |
 
-### 格式操作
+### 格式操作（原子命令）
 | 命令 | 说明 |
 |------|------|
 | `docx set-alignment <file> <id> center` | 设置对齐 |
@@ -225,7 +308,7 @@ docx preview-cleanup
 | `docx extract-format <file> <id>` | 提取格式模板 |
 | `docx apply-format <file> <id> <json>` | 应用格式模板 |
 
-### 高级操作
+### 高级操作（原子命令）
 | 命令 | 说明 |
 |------|------|
 | `docx replace-text <file> <old> <new>` | 替换文本 |
@@ -235,11 +318,12 @@ docx preview-cleanup
 
 ## 执行原则
 
-1. **格式一致性**：新内容必须和模板已有格式一致，用 `format-copy` 或 `apply-format` 保证
-2. **先结构后内容**：先用 `copy-range` 扩展所有章节，再逐一填充
-3. **保留格式替换**：用 `quick-edit` / `batch-replace`，不用 `update-paragraph`
-4. **视觉闭环**：不盲改，每次重大修改后预览验证
-5. **最小修改**：能替换就不删除重建，保留原有格式信息
+1. **优先使用语义命令**：`edit`、`insert`、`format`、`copy` 更简洁直观
+2. **格式一致性**：新内容必须和模板已有格式一致，用 `format --like` 或 `apply-format` 保证
+3. **先结构后内容**：先用 `copy` 扩展所有章节，再逐一填充
+4. **保留格式替换**：用 `edit`，不用 `update-paragraph`
+5. **视觉闭环**：不盲改，每次重大修改后预览验证
+6. **最小修改**：能替换就不删除重建，保留原有格式信息
 
 ## 用户需求
 

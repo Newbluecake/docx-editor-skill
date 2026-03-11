@@ -7,10 +7,70 @@ Each invocation: open file -> build registry -> execute -> save (if mutating) ->
 """
 
 import argparse
+import json
+import os
+import re
 import sys
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Helpers for semantic commands
+# ---------------------------------------------------------------------------
+
+_ELEMENT_ID_RE = re.compile(r"^(para|run|table|cell)_\d{3}$")
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"}
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$")
+
+
+def _is_element_id(s: str) -> bool:
+    """Check if a string looks like an element ID (para_001, table_002, etc.)."""
+    return bool(_ELEMENT_ID_RE.match(s))
+
+
+def _is_image_path(s: str) -> bool:
+    """Check if a string looks like an image file path."""
+    _, ext = os.path.splitext(s)
+    return ext.lower() in _IMAGE_EXTS
+
+
+def _parse_heading(text: str):
+    """Parse '# text' into (level, clean_text). Returns None if not a heading."""
+    m = _HEADING_RE.match(text)
+    if m:
+        return len(m.group(1)), m.group(2)
+    return None
+
+
+def _is_json_dict(s: str) -> bool:
+    """Check if a string is a valid JSON dict."""
+    try:
+        obj = json.loads(s)
+        return isinstance(obj, dict)
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
+def _resolve_position(args) -> str:
+    """Convert --after/--before/--inside/--end flags to 'mode:target' format."""
+    if getattr(args, "after", None):
+        return f"after:{args.after}"
+    if getattr(args, "before", None):
+        return f"before:{args.before}"
+    if getattr(args, "inside", None):
+        return f"inside:{args.inside}"
+    return "end:document_body"
+
+
+def _has_format_args(args) -> bool:
+    """Check if any formatting flags were provided."""
+    return any([
+        getattr(args, "bold", None),
+        getattr(args, "italic", None),
+        getattr(args, "size", None),
+        getattr(args, "color", None),
+    ])
 
 # ---------------------------------------------------------------------------
 # Subcommand handlers
@@ -395,6 +455,245 @@ def _cmd_preview_cleanup(session, args):
     return "Preview files cleaned up."
 
 
+# -- Semantic ---------------------------------------------------------------
+
+def _cmd_edit(session, args):
+    """Smart edit: old->new replacement or batch JSON."""
+    if args.new_text is not None:
+        # Two positional args: old_text, new_text
+        from docx_editor_skill.tools.advanced_tools import docx_replace_text
+        return docx_replace_text(
+            old_text=args.old_text,
+            new_text=args.new_text,
+            scope_id=getattr(args, "scope", None),
+        )
+    else:
+        # Single arg — must be JSON dict for batch replace
+        if not _is_json_dict(args.old_text):
+            return (
+                "# 操作结果: Error\n\n"
+                "**Status**: ❌ Error\n"
+                "**Error Type**: ValidationError\n"
+                "**Message**: Single argument must be a JSON dict for batch replace, "
+                "or provide two arguments for single replace."
+            )
+        from docx_editor_skill.tools.advanced_tools import docx_batch_replace_text
+        return docx_batch_replace_text(
+            replacements_json=args.old_text,
+            scope_id=getattr(args, "scope", None),
+        )
+
+
+def _cmd_insert_semantic(session, args):
+    """Smart insert: auto-detect content type and route to appropriate tool."""
+    position = _resolve_position(args)
+
+    # 1. --table NxM
+    if args.table:
+        match = re.match(r"(\d+)x(\d+)", args.table)
+        if not match:
+            return (
+                "# 操作结果: Error\n\n"
+                "**Status**: ❌ Error\n"
+                "**Error Type**: ValidationError\n"
+                "**Message**: Invalid table format. Use NxM (e.g. 3x2)."
+            )
+        from docx_editor_skill.tools.table_tools import docx_insert_table
+        return docx_insert_table(
+            rows=int(match.group(1)),
+            cols=int(match.group(2)),
+            position=position,
+        )
+
+    # 2. --page-break
+    if args.page_break:
+        from docx_editor_skill.tools.paragraph_tools import docx_insert_page_break
+        return docx_insert_page_break(position=position)
+
+    # text is required for remaining options
+    text = args.text
+    if text is None:
+        return (
+            "# 操作结果: Error\n\n"
+            "**Status**: ❌ Error\n"
+            "**Error Type**: ValidationError\n"
+            "**Message**: Text content is required (unless using --table or --page-break)."
+        )
+
+    # 3. Image file path
+    if _is_image_path(text):
+        from docx_editor_skill.tools.advanced_tools import docx_insert_image
+        return docx_insert_image(
+            image_path=text,
+            position=position,
+            width=getattr(args, "width", None),
+            height=getattr(args, "height", None),
+        )
+
+    # 4. Markdown heading syntax (# Title)
+    heading = _parse_heading(text)
+    if heading and not _has_format_args(args):
+        level, clean_text = heading
+        from docx_editor_skill.tools.paragraph_tools import docx_insert_heading
+        return docx_insert_heading(
+            text=clean_text,
+            position=position,
+            level=level,
+        )
+
+    # 5. Has formatting flags → insert_formatted_paragraph
+    if _has_format_args(args):
+        # Strip heading markers if present, but use formatted paragraph
+        if heading:
+            text = heading[1]
+        from docx_editor_skill.tools.composite_tools import docx_insert_formatted_paragraph
+        return docx_insert_formatted_paragraph(
+            text=text,
+            position=position,
+            bold=args.bold or False,
+            italic=args.italic or False,
+            size=args.size,
+            color_hex=args.color,
+        )
+
+    # 6. Plain text → insert_paragraph
+    from docx_editor_skill.tools.paragraph_tools import docx_insert_paragraph
+    return docx_insert_paragraph(text=text, position=position)
+
+
+def _cmd_format_semantic(session, args):
+    """Smart format: apply styles by ID, text, or range."""
+    # 1. --like → format_copy
+    if args.like:
+        from docx_editor_skill.tools.format_tools import docx_format_copy
+        return docx_format_copy(source_id=args.like, target_id=args.target)
+
+    # 2. --from/--to → format_range
+    if args.range_from and args.range_to:
+        from docx_editor_skill.tools.composite_tools import docx_format_range
+        return docx_format_range(
+            start_text=args.range_from,
+            end_text=args.range_to,
+            bold=args.bold,
+            italic=args.italic,
+            size=args.size,
+            color_hex=args.color,
+        )
+
+    target = args.target
+
+    # 3. Target is an element_id → direct set_font + set_alignment
+    if _is_element_id(target):
+        results = []
+        has_font_args = any([
+            getattr(args, "bold", None) is not None,
+            getattr(args, "italic", None) is not None,
+            getattr(args, "size", None) is not None,
+            getattr(args, "color", None) is not None,
+        ])
+
+        if target.startswith("run_"):
+            # Apply font directly to run
+            if has_font_args:
+                from docx_editor_skill.tools.run_tools import docx_set_font
+                results.append(docx_set_font(
+                    run_id=target,
+                    bold=getattr(args, "bold", None),
+                    italic=getattr(args, "italic", None),
+                    size=getattr(args, "size", None),
+                    color_hex=getattr(args, "color", None),
+                ))
+        elif target.startswith("para_"):
+            # For paragraphs: apply font to all runs, then alignment
+            if has_font_args:
+                obj = session.object_registry.get(target)
+                if obj and hasattr(obj, "runs"):
+                    from docx_editor_skill.tools.run_tools import docx_set_font
+                    for run in obj.runs:
+                        # Find the run's ID in registry
+                        run_id = None
+                        for eid, eobj in session.object_registry.items():
+                            if eobj is run and eid.startswith("run_"):
+                                run_id = eid
+                                break
+                        # If run not in registry, register it now
+                        if not run_id:
+                            run_id = session.register_object(run, "run")
+                        if run_id:
+                            results.append(docx_set_font(
+                                run_id=run_id,
+                                bold=getattr(args, "bold", None),
+                                italic=getattr(args, "italic", None),
+                                size=getattr(args, "size", None),
+                                color_hex=getattr(args, "color", None),
+                            ))
+            if getattr(args, "align", None):
+                from docx_editor_skill.tools.format_tools import docx_set_alignment
+                results.append(docx_set_alignment(
+                    paragraph_id=target,
+                    alignment=args.align,
+                ))
+        if results:
+            return results[-1]  # Return the last result
+        return (
+            "# 操作结果: Error\n\n"
+            "**Status**: ❌ Error\n"
+            "**Error Type**: ValidationError\n"
+            "**Message**: No formatting options specified."
+        )
+
+    # 4. Target is text → find paragraphs then apply format
+    from docx_editor_skill.tools.content_tools import docx_find_paragraphs
+    find_result = docx_find_paragraphs(query=target, max_results=1)
+    # Extract para ID from find result
+    match = re.search(r"\*\*Element ID\*\*:\s*(\w+)", find_result)
+    if not match:
+        # Try alternate pattern in find results
+        match = re.search(r"(para_\d{3})", find_result)
+    if not match:
+        return (
+            "# 操作结果: Error\n\n"
+            "**Status**: ❌ Error\n"
+            "**Error Type**: ElementNotFound\n"
+            f"**Message**: No paragraph found containing '{target}'."
+        )
+    para_id = match.group(1)
+    # Recurse with found ID
+    args.target = para_id
+    return _cmd_format_semantic(session, args)
+
+
+def _cmd_copy_semantic(session, args):
+    """Smart copy: single element or range."""
+    position = _resolve_position(args)
+
+    # Two element IDs → copy range
+    if args.end_id:
+        from docx_editor_skill.tools.copy_tools import docx_copy_elements_range
+        return docx_copy_elements_range(
+            start_id=args.start_id,
+            end_id=args.end_id,
+            position=position,
+        )
+
+    # Single element ID
+    element_id = args.start_id
+    if element_id.startswith("para_"):
+        from docx_editor_skill.tools.paragraph_tools import docx_copy_paragraph
+        return docx_copy_paragraph(paragraph_id=element_id, position=position)
+    elif element_id.startswith("table_"):
+        from docx_editor_skill.tools.table_tools import docx_copy_table
+        return docx_copy_table(table_id=element_id, position=position)
+    else:
+        return (
+            "# 操作结果: Error\n\n"
+            "**Status**: ❌ Error\n"
+            "**Error Type**: ValidationError\n"
+            f"**Message**: Unsupported element type for copy: {element_id}. "
+            "Supported: para_*, table_*."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Commands which mutate the document (auto-save after execution)
 # ---------------------------------------------------------------------------
@@ -409,6 +708,8 @@ MUTATING_COMMANDS = {
     "replace-text", "batch-replace", "insert-image",
     "insert-formatted", "quick-edit", "smart-fill", "format-range",
     "copy-range",
+    # Semantic commands
+    "edit", "insert", "format", "copy",
 }
 
 # Commands that don't need a file
@@ -725,6 +1026,51 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("preview-cleanup", help="Remove preview temp files")
 
+    # --- Semantic commands ---
+    p = sub.add_parser("edit", help="Smart edit: replace text or batch replace with JSON")
+    p.add_argument("file")
+    p.add_argument("old_text", help="Text to replace, or JSON dict for batch replace")
+    p.add_argument("new_text", nargs="?", default=None, help="Replacement text (omit for batch JSON)")
+    p.add_argument("--scope", default=None, help="Limit to element ID scope")
+
+    p = sub.add_parser("insert", help="Smart insert: auto-detect content type")
+    p.add_argument("file")
+    p.add_argument("text", nargs="?", default=None, help="Text, heading (# Title), or image path")
+    p.add_argument("--table", default=None, metavar="NxM", help="Insert table (e.g. 3x2)")
+    p.add_argument("--page-break", action="store_true", default=False, help="Insert page break")
+    p.add_argument("--after", default=None, metavar="ID", help="Position: after element ID")
+    p.add_argument("--before", default=None, metavar="ID", help="Position: before element ID")
+    p.add_argument("--end", action="store_const", const="end", dest="_end", help="Position: end of document (default)")
+    p.add_argument("--inside", default=None, metavar="ID", help="Position: inside element ID")
+    p.add_argument("--bold", action="store_true", default=None, help="Bold text")
+    p.add_argument("--italic", action="store_true", default=None, help="Italic text")
+    p.add_argument("--size", type=float, default=None, help="Font size in points")
+    p.add_argument("--color", default=None, metavar="HEX", help="Font color hex (e.g. FF0000)")
+    p.add_argument("--width", type=float, default=None, help="Image width in inches")
+    p.add_argument("--height", type=float, default=None, help="Image height in inches")
+
+    p = sub.add_parser("format", help="Smart format: apply styles by ID, text, or range")
+    p.add_argument("file")
+    p.add_argument("target", nargs="?", default=None, help="Element ID or text to find")
+    p.add_argument("--like", default=None, metavar="ID", help="Copy format from this element (format painter)")
+    p.add_argument("--from", default=None, dest="range_from", metavar="TEXT", help="Range start text")
+    p.add_argument("--to", default=None, dest="range_to", metavar="TEXT", help="Range end text")
+    _add_bool_arg(p, "bold", "Bold text")
+    _add_bool_arg(p, "italic", "Italic text")
+    p.add_argument("--size", type=float, default=None, help="Font size in points")
+    p.add_argument("--color", default=None, metavar="HEX", help="Font color hex")
+    p.add_argument("--align", default=None, choices=["left", "center", "right", "justify"],
+                    help="Paragraph alignment")
+
+    p = sub.add_parser("copy", help="Smart copy: single element or range")
+    p.add_argument("file")
+    p.add_argument("start_id", help="Element ID to copy (or start of range)")
+    p.add_argument("end_id", nargs="?", default=None, help="End of range (for range copy)")
+    p.add_argument("--after", default=None, metavar="ID", help="Position: after element ID")
+    p.add_argument("--before", default=None, metavar="ID", help="Position: before element ID")
+    p.add_argument("--end", action="store_const", const="end", dest="_end", help="Position: end of document")
+    p.add_argument("--inside", default=None, metavar="ID", help="Position: inside element ID")
+
     return parser
 
 
@@ -789,6 +1135,11 @@ DISPATCH = {
     # Preview
     "preview": _cmd_preview,
     "preview-cleanup": _cmd_preview_cleanup,
+    # Semantic
+    "edit": _cmd_edit,
+    "insert": _cmd_insert_semantic,
+    "format": _cmd_format_semantic,
+    "copy": _cmd_copy_semantic,
 }
 
 
